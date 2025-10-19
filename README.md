@@ -1,4 +1,5 @@
-# midterm-ece371
-midterm project ece 371 data visualization
+# nyc dxd open call
+midterm project
+ece 371: data visualization
 
 work in progress
