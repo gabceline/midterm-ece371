@@ -1,0 +1,76 @@
+---
+title: "ece371_hw7"
+author: "Gabriella Carlos"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1: Interactive Data Visualization Proof-of-Concept
+
+```{r hc, echo=FALSE, warning=FALSE, message=FALSE}
+#import datasets
+heat <- read.csv("HVI_by_Park.csv")
+relief <- read.csv("Heat_Relief_Locations.csv")
+
+
+# load required R packages
+library(tidyverse)
+library(highcharter) 
+library(htmlwidgets)
+library(sf)
+library(geojsonsf)
+library(viridisLite)
+library(jsonlite)
+library(tidyr)
+library(dplyr)
+
+# Set highcharter options
+options(highcharter.theme = hc_theme_smpl(tooltip = list(valueDecimals = 2)))
+
+#convert zipcodes in heat to chars
+heat$ZIPCODE <- as.character(heat$ZIPCODE)
+
+#insert zipcode map
+nyc_zip <- geojson_sf("NYC_ZIP.geojson")
+nyc_zip$postalCode <- as.character(nyc_zip$postalCode) #change zips to chars
+
+#Summarize HVI by ZIP (in case multiple rows per ZIP)
+heat_zip <- heat %>%
+  group_by(ZIPCODE) %>%
+  summarize(HVI = mean(`Heat.Vulnerability.Index..HVI.`, na.rm = TRUE))
+
+#Convert sf object to GeoJSON string for highcharter
+nyc_zip_json <- geojsonsf::sf_geojson(nyc_zip)
+
+# create Highcharter map
+nyc_zip_list <- jsonlite::fromJSON(nyc_zip_json, simplifyVector = FALSE)
+hc <- highchart() %>%
+  hc_add_series_map(
+    map = nyc_zip_list,
+    df = heat_zip,
+    value = "HVI",                 # column to color by
+    joinBy = c("postalCode", "ZIPCODE"), # match GeoJSON ZIP to CSV ZIP
+    name = "Heat Vulnerability Index"
+  ) %>%
+  hc_colorAxis(
+    min = 1,           # minimum HVI
+    max = 5,           # maximum HVI
+    stops = color_stops(
+      colors = c("yellow", "orange", "red")  # 1 = yellow, 5 = red
+    ),
+    tickPositions = c(1, 2, 3, 4, 5),       # only show 1-5 on legend
+    labels = list(format = "{value}")        # optional formatting
+  ) %>%
+  hc_title(text = "NYC Heat Vulnerability") %>%
+  hc_subtitle(text = "Heat Vulnerability (HVI) per ZIP code") %>%
+  hc_legend(layout = "vertical", align = "right", verticalAlign = "middle") %>%
+  hc_tooltip(pointFormat = "ZIP Code: {point.postalCode}<br>HVI: {point.value:.2f}")
+
+#show map
+hc
+
+```
